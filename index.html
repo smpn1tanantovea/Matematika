@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#f8fafc">
+  <title>Portal Satuan Pendidikan</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #f8fafc;
+      color: #1e293b;
+      font-family: Inter, Arial, sans-serif;
+    }
+    .nav-btn {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      padding: 11px 13px;
+      border-radius: 12px;
+      color: #475569;
+      text-align: left;
+      transition: .2s;
+    }
+    .nav-btn:hover, .nav-btn.active {
+      color: #1d4ed8;
+      background: #eff6ff;
+    }
+    .panel { display: none; }
+    .panel.active { display: block; }
+    .card {
+      background: white;
+      border: 1px solid #e2e8f0;
+      border-radius: 18px;
+      box-shadow: 0 2px 8px #0f172a05;
+    }
+    .field {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      background: white;
+      outline: none;
+    }
+    .field:focus {
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px #3b82f61c;
+    }
+    .primary-btn {
+      background: #2563eb;
+      color: white;
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-weight: 600;
+    }
+    .primary-btn:hover { background: #1d4ed8; }
+    .muted { color: #64748b; }
+    .spinner {
+      width: 35px; height: 35px;
+      border: 4px solid #dbeafe;
+      border-top-color: #2563eb;
+      border-radius: 50%;
+      animation: spin .8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td {
+      text-align: left;
+      padding: 12px;
+      border-bottom: 1px solid #e2e8f0;
+      font-size: 14px;
+    }
+    th {
+      background: #f8fafc;
+      color: #475569;
+      white-space: nowrap;
+    }
+    .pill {
+      display: inline-block;
+      padding: 4px 9px;
+      border-radius: 999px;
+      background: #eff6ff;
+      color: #1d4ed8;
+      font-size: 12px;
+    }
+    .shortcut {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px;
+      border: 1px solid #e2e8f0;
+      border-radius: 14px;
+      color: #334155;
+      background: white;
+    }
+    .shortcut:hover { background: #f8fafc; }
+    .announcement {
+      border-left: 4px solid #3b82f6;
+      padding: 12px 15px;
+      background: #f8fafc;
+      border-radius: 0 12px 12px 0;
+    }
+    @media (max-width: 640px) {
+      .nav-btn { justify-content: center; padding: 10px 7px; }
+      .nav-btn span { display: none; }
+      .mobile-grid { grid-template-columns: 1fr 1fr; }
+      th, td { padding: 10px; }
+    }
+  </style>
+</head>
+
+<body>
+  <div id="loading" class="fixed inset-0 z-50 flex items-center justify-center bg-white/95">
+    <div class="text-center">
+      <div class="spinner mx-auto mb-4"></div>
+      <p class="font-semibold">Memuat data sekolah...</p>
+      <p class="text-sm muted mt-1">Menghubungkan ke Google Workspace</p>
+    </div>
+  </div>
+
+  <div class="max-w-7xl mx-auto p-3 sm:p-6">
+    <header class="card p-4 sm:p-6 mb-5">
+      <div class="flex items-center gap-4">
+        <div class="rounded-2xl bg-blue-600 text-white p-3 shrink-0">
+          <i data-lucide="school" class="w-8 h-8"></i>
+        </div>
+        <div class="min-w-0 flex-1">
+          <p class="text-xs uppercase tracking-widest muted">Portal resmi sekolah</p>
+          <h1 id="schoolName" class="text-xl sm:text-2xl font-bold mt-1">
+            Portal Satuan Pendidikan
+          </h1>
+          <p id="schoolAddress" class="text-sm muted mt-1">
+            Informasi dan layanan sekolah
+          </p>
+        </div>
+        <button id="refreshBtn" class="primary-btn flex items-center gap-2 text-sm"
+          onclick="loadData(true)">
+          <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+          <span class="hidden sm:inline">Segarkan</span>
+        </button>
+      </div>
+      <div class="mt-4 flex flex-wrap gap-2 text-xs muted">
+        <span class="pill" id="connectionStatus">Menghubungkan...</span>
+        <span id="lastUpdated">Belum ada pembaruan</span>
+      </div>
+    </header>
+
+    <div class="grid grid-cols-1 lg:grid-cols-[220px_minmax(0,1fr)] gap-5">
+      <aside class="card p-3 h-fit">
+        <nav class="grid grid-cols-5 lg:grid-cols-1 gap-1" aria-label="Navigasi utama">
+          <button class="nav-btn active" data-page="beranda">
+            <i data-lucide="layout-dashboard"></i><span>Beranda</span>
+          </button>
+          <button class="nav-btn" data-page="pengumuman">
+            <i data-lucide="megaphone"></i><span>Pengumuman</span>
+          </button>
+          <button class="nav-btn" data-page="pegawai">
+            <i data-lucide="users"></i><span>Direktori PTK</span>
+          </button>
+          <button class="nav-btn" data-page="siswa">
+            <i data-lucide="graduation-cap"></i><span>Peserta Didik</span>
+          </button>
+          <button class="nav-btn" data-page="agenda">
+            <i data-lucide="calendar-days"></i><span>Agenda</span>
+          </button>
+        </nav>
+        <div class="hidden lg:block border-t mt-4 pt-4">
+          <p class="text-xs muted px-3 mb-2">LAYANAN DIGITAL</p>
+          <button class="nav-btn" data-page="layanan">
+            <i data-lucide="external-link"></i><span>Pintasan Layanan</span>
+          </button>
+        </div>
+      </aside>
+
+      <main class="min-w-0">
+        <div id="errorBox" class="hidden card p-5 mb-4 border-red-200">
+          <h2 class="font-bold text-red-700">Data belum dapat dimuat</h2>
+          <p id="errorText" class="text-sm mt-2"></p>
+          <button class="primary-btn mt-3" onclick="loadData(true)">
+            Coba lagi
+          </button>
+        </div>
+
+        <section id="page-beranda" class="panel active space-y-5">
+          <div>
+            <h2 class="text-2xl font-bold">Selamat Datang</h2>
+            <p class="muted mt-1">Pusat informasi dan layanan satuan pendidikan.</p>
+          </div>
+
+          <div class="grid mobile-grid sm:grid-cols-2 xl:grid-cols-4 gap-3">
+            <div class="card p-4">
+              <div class="flex justify-between muted text-sm">
+                Peserta Didik <i data-lucide="graduation-cap"></i>
+              </div>
+              <p id="statSiswa" class="text-3xl font-bold mt-3">—</p>
+              <p class="text-xs muted mt-1">Jumlah siswa</p>
+            </div>
+            <div class="card p-4">
+              <div class="flex justify-between muted text-sm">
+                Guru / PTK <i data-lucide="users"></i>
+              </div>
+              <p id="statGuru" class="text-3xl font-bold mt-3">—</p>
+              <p class="text-xs muted mt-1">Data pegawai</p>
+            </div>
+            <div class="card p-4">
+              <div class="flex justify-between muted text-sm">
+                Pengumuman <i data-lucide="megaphone"></i>
+              </div>
+              <p id="statPengumuman" class="text-3xl font-bold mt-3">0</p>
+              <p class="text-xs muted mt-1">Informasi tersedia</p>
+            </div>
+            <div class="card p-4">
+              <div class="flex justify-between muted text-sm">
+                Agenda <i data-lucide="calendar-check"></i>
+              </div>
+              <p id="statAgenda" class="text-3xl font-bold mt-3">0</p>
+              <p class="text-xs muted mt-1">Kegiatan tercatat</p>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
+            <div class="card p-5">
+              <h3 class="font-bold text-lg mb-3">Profil Sekolah</h3>
+              <dl id="profileDetails" class="space-y-3 text-sm"></dl>
+              <div class="border-t mt-4 pt-4">
+                <h4 class="font-semibold">Visi</h4>
+                <p id="schoolVision" class="muted mt-2 text-sm">Belum tersedia.</p>
+                <h4 class="font-semibold mt-4">Misi</h4>
+                <p id="schoolMission" class="muted mt-2 text-sm">Belum tersedia.</p>
+              </div>
+            </div>
+            <div class="card p-5">
+              <div class="flex justify-between items-center mb-4">
+                <h3 class="font-bold text-lg">Pengumuman Terbaru</h3>
+                <button class="text-blue-600 text-sm" onclick="showPage('pengumuman')">
+                  Lihat semua
+                </button>
+              </div>
+              <div id="latestAnnouncements" class="space-y-3"></div>
+            </div>
+          </div>
+
+          <div class="card p-5">
+            <div class="flex justify-between items-center mb-4">
+              <h3 class="font-bold text-lg">Agenda Mendatang</h3>
+              <button class="text-blue-600 text-sm" onclick="showPage('agenda')">
+                Lihat agenda
+              </button>
+            </div>
+            <div id="latestAgenda" class="space-y-3"></div>
+          </div>
+        </section>
+
+        <section id="page-pengumuman" class="panel space-y-4">
+          <div>
+            <h2 class="text-2xl font-bold">Papan Pengumuman</h2>
+            <p class="muted mt-1">Informasi resmi dari satuan pendidikan.</p>
+          </div>
+          <input id="announcementSearch" class="field"
+            placeholder="Cari judul atau isi pengumuman..."
+            oninput="renderAnnouncements()">
+          <div id="announcementList" class="space-y-3"></div>
+        </section>
+
+        <section id="page-pegawai" class="panel space-y-4">
+          <div>
+            <h2 class="text-2xl font-bold">Direktori PTK</h2>
+            <p class="muted mt-1">Pendidik dan tenaga kependidikan.</p>
+          </div>
+          <input id="pegawaiSearch" class="field"
+            placeholder="Cari nama, jabatan, atau status..."
+            oninput="renderPegawai()">
+          <div class="card table-wrap">
+            <table>
+              <thead><tr>
+                <th>Foto</th><th>Nama</th><th>Jabatan</th><th>Status</th><th>Email</th>
+              </tr></thead>
+              <tbody id="pegawaiRows"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="page-siswa" class="panel space-y-4">
+          <div>
+            <h2 class="text-2xl font-bold">Direktori Peserta Didik</h2>
+            <p class="muted mt-1">Cari dan filter berdasarkan kelas.</p>
+          </div>
+          <div class="grid sm:grid-cols-2 gap-3">
+            <input id="siswaSearch" class="field"
+              placeholder="Cari nama atau NIS..." oninput="renderSiswa()">
+            <select id="kelasFilter" class="field" onchange="renderSiswa()">
+              <option value="">Semua kelas</option>
+            </select>
+          </div>
+          <div class="card table-wrap">
+            <table>
+              <thead><tr><th>Nama</th><th>Kelas</th><th>Status</th></tr></thead>
+              <tbody id="siswaRows"></tbody>
+            </table>
+          </div>
+          <p class="text-xs muted">
+            Untuk publikasi, tampilkan hanya data siswa yang memang diizinkan
+            untuk dibagikan. Hindari NIS dan informasi pribadi pada situs publik.
+          </p>
+        </section>
+
+        <section id="page-agenda" class="panel space-y-4">
+          <div>
+            <h2 class="text-2xl font-bold">Agenda Sekolah</h2>
+            <p class="muted mt-1">Jadwal kegiatan dan kalender sekolah.</p>
+          </div>
+          <input id="agendaSearch" class="field"
+            placeholder="Cari kegiatan atau lokasi..." oninput="renderAgenda()">
+          <div id="agendaList" class="space-y-3"></div>
+        </section>
+
+        <section id="page-layanan" class="panel space-y-4">
+          <h2 class="text-2xl font-bold">Pintasan Layanan Digital</h2>
+          <p class="muted">Akses layanan daring satuan pendidikan.</p>
+          <div id="shortcutList" class="grid sm:grid-cols-2 gap-3"></div>
+        </section>
+      </main>
+    </div>
+
+    <footer class="text-center text-xs muted py-8">
+      <p id="footerSchool">Portal Informasi Satuan Pendidikan</p>
+      <p class="mt-1">Didukung Google Workspace</p>
+    </footer>
+  </div>
+
+<script>
+'use strict';
+
+// 1. GANTI URL INI DENGAN URL WEB APP HASIL DEPLOYMENT.
+const API_URL = 'https://script.google.com/macros/s/AKfycbxExJvnFbUSRDRCYINnD6Vf1AqoAnR0514HdgUrbWDI084gD-jvEvHB_ZOnYyFibJ55/exec';
+
+// Polling 60 detik. Apps Script juga memakai cache selama 30 detik.
+const REFRESH_INTERVAL = 60000;
+
+const state = {
+  profil: {},
+  pengumuman: [],
+  pegawai: [],
+  agenda: [],
+  pesertaDidik: [],
+  loading: false
+};
+
+const $ = id => document.getElementById(id);
+const text = value => String(value ?? '').trim();
+
+// Seluruh nilai dari Sheets ditampilkan sebagai teks aman.
+function escapeHTML(value) {
+  return text(value).replace(/[&<>"']/g, char => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;',
+    '"': '&quot;', "'": '&#39;'
+  })[char]);
+}
+
+function safeURL(value) {
+  try {
+    const url = new URL(text(value));
+    return ['https:', 'http:'].includes(url.protocol) ? url.href : '';
+  } catch (_) {
+    return '';
+  }
+}
+
+function formatDate(value) {
+  const raw = text(value);
+  if (!raw) return 'Tanggal belum ditentukan';
+
+  // Data tanggal Sheets dapat berupa dd/MM/yyyy atau yyyy-MM-dd.
+  let match = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (match) {
+    const date = new Date(+match[1], +match[2] - 1, +match[3]);
+    return date.toLocaleDateString('id-ID', {
+      day: 'numeric', month: 'long', year: 'numeric'
+    });
+  }
+
+  match = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (match) {
+    const date = new Date(+match[3], +match[2] - 1, +match[1]);
+    return date.toLocaleDateString('id-ID', {
+      day: 'numeric', month: 'long', year: 'numeric'
+    });
+  }
+
+  return raw;
+}
+
+function setStatus(message, ok = true) {
+  $('connectionStatus').textContent = message;
+  $('connectionStatus').style.background = ok ? '#dcfce7' : '#fee2e2';
+  $('connectionStatus').style.color = ok ? '#166534' : '#991b1b';
+}
+
+function setLoading(value) {
+  state.loading = value;
+  $('loading').classList.toggle('hidden', !value);
+  $('refreshBtn').disabled = value;
+  $('refreshBtn').style.opacity = value ? '.6' : '1';
+}
+
+function loadViaJSONP(url, timeout = 15000) {
+  return new Promise((resolve, reject) => {
+    const callbackName = '__schoolAPI_' +
+      Date.now() + '_' + Math.random().toString(36).slice(2);
+
+    const script = document.createElement('script');
+    const timer = setTimeout(() => finish(
+      new Error('Permintaan API melewati batas waktu.')
+    ), timeout);
+
+    function cleanup() {
+      clearTimeout(timer);
+      delete window[callbackName];
+      script.remove();
+    }
+
+    function finish(error, result) {
+      cleanup();
+      if (error) reject(error);
+      else resolve(result);
+    }
+
+    window[callbackName] = result => finish(null, result);
+    script.onerror = () => finish(
+      new Error('API tidak dapat diakses. Periksa URL dan izin deployment.')
+    );
+
+    script.src = url +
+      (url.includes('?') ? '&' : '?') +
+      'action=all&callback=' + encodeURIComponent(callbackName) +
+      '&_=' + Date.now();
+
+    document.body.appendChild(script);
+  });
+}
+
+async function loadData(manual = false) {
+  if (state.loading) return;
+
+  if (!API_URL.startsWith('https://script.google.com/macros/s/')) {
+    $('errorBox').classList.remove('hidden');
+    $('errorText').textContent =
+      'Masukkan URL Web App Apps Script pada konstanta API_URL.';
+    setStatus('URL belum dikonfigurasi', false);
+    return;
+  }
+
+  setLoading(true);
+  if (manual) $('errorBox').classList.add('hidden');
+
+  try {
+    // JSONP cocok untuk embed lintas domain.
+    const response = await loadViaJSONP(API_URL);
+
+    if (!response || response.success !== true || !response.data) {
+      throw new Error(response?.error || 'Respons API tidak valid.');
+    }
+
+    const data = response.data;
+    state.profil = data.profil || {};
+    state.pengumuman = Array.isArray(data.pengumuman) ? data.pengumuman : [];
+    state.pegawai = Array.isArray(data.pegawai) ? data.pegawai : [];
+    state.agenda = Array.isArray(data.agenda) ? data.agenda : [];
+    state.pesertaDidik = Array.isArray(data.pesertaDidik)
+      ? data.pesertaDidik : [];
+
+    renderAll();
+    $('errorBox').classList.add('hidden');
+    setStatus('Terhubung ke Google Sheets', true);
+    $('lastUpdated').textContent = 'Diperbarui: ' +
+      new Date().toLocaleTimeString('id-ID');
+  } catch (error) {
+    console.error('API error:', error);
+    $('errorBox').classList.remove('hidden');
+    $('errorText').textContent =
+      error.message || 'Terjadi kesalahan saat memuat data.';
+    setStatus('Gagal memuat data', false);
+  } finally {
+    setLoading(false);
+    if (window.lucide) lucide.createIcons();
+  }
+}
+
+function renderAll() {
+  renderProfile();
+  renderStats();
+  renderAnnouncements();
+  renderPegawai();
+  renderSiswa();
+  renderAgenda();
+  renderShortcuts();
+  renderLatest();
+}
+
+function renderProfile() {
+  const p = state.profil;
+
+  $('schoolName').textContent = p.namaSekolah || 'Portal Satuan Pendidikan';
+  $('schoolAddress').textContent = p.alamat || 'Informasi dan layanan sekolah';
+  $('footerSchool').textContent = p.namaSekolah || 'Portal Satuan Pendidikan';
+  $('schoolVision').textContent = p.visi || 'Belum tersedia.';
+  $('schoolMission').textContent = p.misi || 'Belum tersedia.';
+
+  const fields = [
+    ['NPSN', p.npsn],
+    ['Kepala Sekolah', p.kepalaSekolah],
+    ['Email', p.email],
+    ['Alamat', p.alamat]
+  ];
+
+  $('profileDetails').innerHTML = fields.map(([label, value]) => `
+    <div class="flex gap-3 justify-between">
+      <dt class="muted">${escapeHTML(label)}</dt>
+      <dd class="font-medium text-right break-words">
+        ${escapeHTML(value || '—')}
+      </dd>
+    </div>
+  `).join('');
+}
+
+function renderStats() {
+  const p = state.profil;
+  $('statSiswa').textContent =
+    p.jumlahSiswa || state.pesertaDidik.length;
+  $('statGuru').textContent =
+    p.jumlahGuru || state.pegawai.length;
+  $('statPengumuman').textContent = state.pengumuman.length;
+  $('statAgenda').textContent = state.agenda.length;
+}
+
+function renderAnnouncements() {
+  const query = text($('announcementSearch')?.value).toLowerCase();
+  const rows = state.pengumuman.filter(item => {
+    const active = !item.Status ||
+      /aktif|terbit|publish/i.test(item.Status);
+    const content = [item.Judul, item.Isi, item.Kategori].join(' ').toLowerCase();
+    return active && content.includes(query);
+  });
+
+  const markup = rows.length ? rows.map(item => `
+    <article class="card p-4">
+      <div class="flex flex-wrap items-center gap-2 mb-2">
+        <span class="pill">${escapeHTML(item.Kategori || 'Informasi')}</span>
+        <span class="text-xs muted">${escapeHTML(formatDate(item.Tanggal))}</span>
+      </div>
+      <h3 class="font-bold text-lg">${escapeHTML(item.Judul || 'Pengumuman')}</h3>
+      <p class="text-sm muted mt-2 whitespace-pre-line">${escapeHTML(item.Isi || '')}</p>
+    </article>
+  `).join('') : '<div class="card p-5 muted">Belum ada pengumuman.</div>';
+
+  if ($('announcementList')) $('announcementList').innerHTML = markup;
+}
+
+function driveFotoURL(value) {
+  const raw = text(value);
+  if (!raw) return '';
+
+  // Ubah tautan berbagi Google Drive menjadi URL thumbnail untuk elemen <img>.
+  const idMatch = raw.match(/drive\.google\.com\/file\/d\/([^/?#]+)/i)
+    || raw.match(/[?&]id=([^&#]+)/i)
+    || raw.match(/drive\.google\.com\/thumbnail\?id=([^&#]+)/i);
+
+  if (idMatch && idMatch[1]) {
+    return 'https://drive.google.com/thumbnail?id=' +
+      encodeURIComponent(idMatch[1]) + '&sz=w300';
+  }
+
+  // Mendukung URL gambar HTTP/HTTPS selain Google Drive.
+  return safeURL(raw);
+}
+
+function renderPegawai() {
+  const query = text($('pegawaiSearch')?.value).toLowerCase();
+  const rows = state.pegawai.filter(item =>
+    [item.Nama, item.Jabatan, item.Status, item.Email]
+      .join(' ').toLowerCase().includes(query)
+  );
+
+  $('pegawaiRows').innerHTML = rows.length ? rows.map(item => {
+    const email = text(item.Email);
+    const emailLink = email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+      ? `<a class="text-blue-600" href="mailto:${escapeHTML(email)}">${escapeHTML(email)}</a>`
+      : '—';
+
+    const fotoURL = driveFotoURL(item.Foto);
+    const fotoHTML = fotoURL
+      ? `<img src="${escapeHTML(fotoURL)}"
+          alt="Foto ${escapeHTML(item.Nama || 'PTK')}"
+          loading="lazy"
+          referrerpolicy="no-referrer"
+          class="w-14 h-16 rounded-lg object-cover border border-slate-200 bg-slate-100"
+          onerror="this.onerror=null;this.style.display='none';this.nextElementSibling.style.display='flex';">
+         <div class="w-14 h-16 rounded-lg bg-slate-100 border border-slate-200 items-center justify-center text-slate-400"
+          style="display:none" aria-label="Foto tidak tersedia">
+          <i data-lucide="user-round" class="w-6 h-6"></i>
+         </div>`
+      : `<div class="w-14 h-16 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-400"
+          aria-label="Foto belum tersedia">
+          <i data-lucide="user-round" class="w-6 h-6"></i>
+         </div>`;
+
+    return `<tr>
+      <td>${fotoHTML}</td>
+      <td class="font-medium">${escapeHTML(item.Nama || '—')}</td>
+      <td>${escapeHTML(item.Jabatan || '—')}</td>
+      <td>${escapeHTML(item.Status || '—')}</td>
+      <td>${emailLink}</td>
+    </tr>`;
+  }).join('') :
+    '<tr><td colspan="5" class="muted">Data tidak ditemukan.</td></tr>';
+
+  if (window.lucide) lucide.createIcons();
+}
+function renderSiswa() {
+  const query = text($('siswaSearch')?.value).toLowerCase();
+  const selectedClass = text($('kelasFilter')?.value);
+
+  const classes = [...new Set(state.pesertaDidik
+    .map(item => text(item.Kelas)).filter(Boolean))].sort();
+
+  const filter = $('kelasFilter');
+  if (filter && filter.dataset.ready !== '1') {
+    filter.innerHTML = '<option value="">Semua kelas</option>' +
+      classes.map(k => `<option value="${escapeHTML(k)}">${escapeHTML(k)}</option>`).join('');
+    filter.dataset.ready = '1';
+  }
+
+  const rows = state.pesertaDidik.filter(item => {
+    const matchesQuery = [item.Nama, item.NIS, item.Kelas]
+      .join(' ').toLowerCase().includes(query);
+    return matchesQuery && (!selectedClass || item.Kelas === selectedClass);
+  });
+
+  $('siswaRows').innerHTML = rows.length ? rows.map(item => `
+    <tr>
+      <td class="font-medium">${escapeHTML(item.Nama || '—')}</td>
+      <td>${escapeHTML(item.Kelas || '—')}</td>
+      <td>${escapeHTML(item.Status || '—')}</td>
+    </tr>
+  `).join('') :
+    '<tr><td colspan="3" class="muted">Data tidak ditemukan.</td></tr>';
+}
+
+function renderAgenda() {
+  const query = text($('agendaSearch')?.value).toLowerCase();
+  const rows = state.agenda.filter(item =>
+    [item.Kegiatan, item.Lokasi, item.Status]
+      .join(' ').toLowerCase().includes(query)
+  );
+
+  $('agendaList').innerHTML = rows.length ? rows.map(item => `
+    <article class="card p-4 flex gap-4">
+      <div class="rounded-xl bg-blue-50 text-blue-700 p-3 h-fit">
+        <i data-lucide="calendar-days"></i>
+      </div>
+      <div class="min-w-0">
+        <h3 class="font-bold">${escapeHTML(item.Kegiatan || 'Kegiatan sekolah')}</h3>
+        <p class="text-sm muted mt-1">
+          ${escapeHTML(formatDate(item.Tanggal))}
+          ${item.Waktu ? ' · ' + escapeHTML(item.Waktu) : ''}
+        </p>
+        <p class="text-sm muted mt-1">${escapeHTML(item.Lokasi || '')}</p>
+        ${item.Status ? `<span class="pill mt-2">${escapeHTML(item.Status)}</span>` : ''}
+      </div>
+    </article>
+  `).join('') : '<div class="card p-5 muted">Belum ada agenda.</div>';
+
+  if (window.lucide) lucide.createIcons();
+}
+
+function renderLatest() {
+  const announcements = state.pengumuman.slice(0, 3);
+  $('latestAnnouncements').innerHTML = announcements.length
+    ? announcements.map(item => `
+      <article class="announcement">
+        <h4 class="font-semibold">${escapeHTML(item.Judul || 'Informasi')}</h4>
+        <p class="text-xs muted mt-1">${escapeHTML(formatDate(item.Tanggal))}</p>
+        <p class="text-sm mt-2">${escapeHTML(text(item.Isi).slice(0, 180))}</p>
+      </article>
+    `).join('')
+    : '<p class="text-sm muted">Belum ada pengumuman.</p>';
+
+  const agenda = [...state.agenda]
+    .sort((a, b) => text(a.Tanggal).localeCompare(text(b.Tanggal)))
+    .slice(0, 3);
+
+  $('latestAgenda').innerHTML = agenda.length ? agenda.map(item => `
+    <div class="flex gap-3 border-b last:border-0 pb-3 last:pb-0">
+      <div class="rounded-xl bg-blue-50 text-blue-700 p-3 h-fit">
+        <i data-lucide="calendar"></i>
+      </div>
+      <div>
+        <p class="font-semibold">${escapeHTML(item.Kegiatan || 'Kegiatan')}</p>
+        <p class="text-sm muted mt-1">
+          ${escapeHTML(formatDate(item.Tanggal))}
+          ${item.Waktu ? ' · ' + escapeHTML(item.Waktu) : ''}
+        </p>
+      </div>
+    </div>
+  `).join('') : '<p class="text-sm muted">Belum ada agenda.</p>';
+}
+
+function renderShortcuts() {
+  const p = state.profil;
+  const shortcuts = [
+    ['Google Drive', p.linkDrive, 'folder-open'],
+    ['Formulir PPDB', p.linkPPDB, 'clipboard-list'],
+    ['Kotak Saran', p.linkSaran, 'message-square'],
+    ['Email Sekolah', p.email ? 'mailto:' + p.email : '', 'mail']
+  ];
+
+  $('shortcutList').innerHTML = shortcuts.map(([label, url, icon]) => {
+    const safe = url.startsWith('mailto:') &&
+      /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(p.email || '')
+      ? 'mailto:' + p.email : safeURL(url);
+
+    if (!safe) return '';
+
+    return `<a class="shortcut" href="${escapeHTML(safe)}"
+      target="_blank" rel="noopener noreferrer">
+      <i data-lucide="${escapeHTML(icon)}" class="text-blue-600"></i>
+      <span class="font-semibold">${escapeHTML(label)}</span>
+      <i data-lucide="arrow-up-right" class="ml-auto muted"></i>
+    </a>`;
+  }).join('') || '<p class="muted">Pintasan belum dikonfigurasi di sheet Profil.</p>';
+
+  if (window.lucide) lucide.createIcons();
+}
+
+function showPage(name) {
+  document.querySelectorAll('.panel').forEach(panel => {
+    panel.classList.toggle('active', panel.id === 'page-' + name);
+  });
+
+  document.querySelectorAll('.nav-btn[data-page]').forEach(button => {
+    button.classList.toggle('active', button.dataset.page === name);
+  });
+
+  if (window.lucide) lucide.createIcons();
+}
+
+document.querySelectorAll('.nav-btn[data-page]').forEach(button => {
+  button.addEventListener('click', () => showPage(button.dataset.page));
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+  if (window.lucide) lucide.createIcons();
+  loadData();
+  setInterval(() => loadData(false), REFRESH_INTERVAL);
+});
+</script>
+</body>
+</html>
